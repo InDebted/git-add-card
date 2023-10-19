@@ -3,83 +3,20 @@
 set -euo pipefail
 
 readonly TRAILER_TOKEN="Co-authored-by"
-readonly USAGE="usage: git co-author                Show co-authors in commit template
-   or: git co-author <initials>...  Update co-authors in commit template
-   or: git co-author authors        List authors in git config
-   or: git co-author clear          Remove all co-authors from commit template
-   or: git co-author find           Find authors in git log"
+readonly USAGE="usage: git add-card  Show card in commit template
+   or: git add-card <card>           Update card in commit template
+   or: git co-author clear           Remove card from commit template"
 
 main() {
-  if [[ $# -eq 0 ]]
-  then
+  if [[ $# -eq 0 ]]; then
     show_trailers
   fi
-
-  for arg in "$@"
-  do
-    if [[ "$arg" = "-h" ]]
-    then
-      print_usage
-    fi
-  done
-
-  case "$1" in
-  authors)
-    list_authors
-    ;;
-  clear)
-    clear_trailers
-    ;;
-  find)
-    find_authors
-    ;;
-  esac
-
-  update_trailers "$@"
 }
 
 show_trailers() {
   ensure_template_file
   print_trailers
   exit 0
-}
-
-print_usage() {
-  echo "$USAGE"
-  exit 0
-}
-
-clear_trailers() {
-  ensure_template_file
-  remove_trailers
-  exit 0
-}
-
-list_authors() {
-  print_configured_authors
-  exit 0
-}
-
-find_authors() {
-  {
-    git log --pretty="%an <%ae>";
-    git log --pretty="%(trailers:key=Co-authored-by,valueonly,only)" | awk NF;
-  } | sort | uniq
-  exit 0
-}
-
-update_trailers() {
-  ensure_template_file
-  must_have_initials "$@"
-  remove_trailers
-  add_trailers "$@"
-  print_trailers
-  exit 0
-}
-
-abort() {
-  >&2 echo "$1"
-  exit 1
 }
 
 ensure_template_file() {
@@ -94,62 +31,6 @@ Example:
   touch "$template_file"
 }
 
-must_have_config() {
-  local key=$1
-  local error=$2
-  if ! git config "$key" &> /dev/null
-  then
-    abort "$error"
-  fi
-
-  if [[ -z $(git config "$key") ]]
-  then
-    abort "$error"
-  fi
-}
-
-must_have_initials() {
-  for initials in "$@"
-  do
-      must_have_config "co-authors.$initials" "co-author '$initials' is not configured
-
-Example:
-  git config --global co-authors.aa 'Ann Author <ann.author@example.com>'"
-  done
-}
-
-add_trailers() {
-  for initials in "$@"
-  do
-    value=$(git config "co-authors.$initials")
-    git interpret-trailers --trailer "$TRAILER_TOKEN: $value" --in-place "$template_file"
-  done
-}
-
-remove_trailers() {
-  local temp_file
-  temp_file=$(mktemp)
-  sed "/$TRAILER_TOKEN/d" "$template_file" > "$temp_file"
-  mv "$temp_file" "$template_file"
-}
-
 print_trailers() {
   sed -n "/$TRAILER_TOKEN/p" "$template_file"
 }
-
-print_configured_authors() {
-  if ! git config --get-regexp "co-authors.*" &> /dev/null
-  then
-    echo "No authors in config.
-
-Example:
-  git config --global co-authors.aa 'Ann Author <ann.author@example.com>'"
-  else
-    git config --get-regexp 'co-authors.*' |
-      sed -E "s/co-authors.([a-z0-9-]+)[[:space:]](.*)/\1|'\2'/" |
-      column -t -s"|" |
-      sort
-  fi
-}
-
-main "$@"
