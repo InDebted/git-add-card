@@ -5,8 +5,8 @@ RUN apk --no-cache add \
   git \
   util-linux
 
-WORKDIR /git-co-author
+WORKDIR /git-add-card
 
-COPY . /git-co-author
+COPY . /git-add-card
 
-CMD [ "./test/git-co-author.bats" ]
+CMD [ "./test/git-add-card.bats" ]
